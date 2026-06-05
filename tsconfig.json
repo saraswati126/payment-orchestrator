@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",                          /* Modern JavaScript engine support */
+    "module": "NodeNext",                        /* Standard for modern Node.js */
+    "moduleResolution": "NodeNext",
+    "rootDir": "./src",                          /* Where your source code lives */
+    "outDir": "./dist",                          /* Where the final built code goes */
+    "strict": true,                              /* TURNS ON ALL STRICT RULES */
+    "noImplicitAny": true,                       /* BANS the use of 'any' type! */
+    "strictNullChecks": true,                    /* Prevents crashing on missing data */
+    "esModuleInterop": true,                     /* Smooth compatibility layers */
+    "skipLibCheck": true,                        /* Makes compilation lightning fast */
+    "forceConsistentCasingInFileNames": true     /* Prevents errors across Windows/Mac */
+  },
+  "include": ["src/**/*"]                        /* Check everything inside the src folder */
+}
