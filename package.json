@@ -12,5 +12,17 @@
     "typescript"
   ],
   "author": "Saraswati Sanga",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saraswati126/payment-orchestrator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/saraswati126/payment-orchestrator/issues"
+  },
+  "homepage": "https://github.com/saraswati126/payment-orchestrator#readme",
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
+  }
 }

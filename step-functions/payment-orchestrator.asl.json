@@ -1,0 +1,24 @@
+{
+  "Comment": "Payment Processing Orchestrator",
+  "StartAt": "ValidatePayment",
+  "States": {
+    "ValidatePayment": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:region:account:function:validate-payment",
+      "Next": "AuthorizePayment"
+    },
+    "AuthorizePayment": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:region:account:function:authorize-payment",
+      "Next": "CapturePayment"
+    },
+    "CapturePayment": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:region:account:function:capture-payment",
+      "Next": "SuccessState"
+    },
+    "SuccessState": {
+      "Type": "Succeed"
+    }
+  }
+}
