@@ -1,24 +1,62 @@
 {
-  "Comment": "Payment Processing Orchestrator",
-  "StartAt": "ValidatePayment",
+  "Comment": "Enterprise Serverless Payment Orchestrator Transaction Workflow State Machine",
+  "StartAt": "ValidatePaymentState",
   "States": {
-    "ValidatePayment": {
+    "ValidatePaymentState": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:region:account:function:validate-payment",
-      "Next": "AuthorizePayment"
+      "Resource": "${ValidatePaymentLambdaArn}",
+      "Next": "IsPayloadValidChoice"
     },
-    "AuthorizePayment": {
+    "IsPayloadValidChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.isValid",
+          "BooleanEquals": true,
+          "Next": "AuthorizePaymentState"
+        }
+      ],
+      "Default": "TransactionFailedState"
+    },
+    "AuthorizePaymentState": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:region:account:function:authorize-payment",
-      "Next": "CapturePayment"
+      "Resource": "${AuthorizePaymentLambdaArn}",
+      "ResultPath": "$.authResult",
+      "Next": "IsAuthorizationSuccessfulChoice"
     },
-    "CapturePayment": {
+    "IsAuthorizationSuccessfulChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.authResult.status",
+          "StringEquals": "AUTHORIZED",
+          "Next": "PrepareCapturePayloadState"
+        }
+      ],
+      "Default": "TransactionFailedState"
+    },
+    "PrepareCapturePayloadState": {
+      "Type": "Pass",
+      "Parameters": {
+        "transactionId.$": "$.authResult.transactionId",
+        "amount.$": "$.amount",
+        "currency.$": "$.currency"
+      },
+      "Next": "CapturePaymentState"
+    },
+    "CapturePaymentState": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:region:account:function:capture-payment",
-      "Next": "SuccessState"
+      "Resource": "${CapturePaymentLambdaArn}",
+      "ResultPath": "$.captureResult",
+      "Next": "TransactionSuccessState"
     },
-    "SuccessState": {
+    "TransactionSuccessState": {
       "Type": "Succeed"
+    },
+    "TransactionFailedState": {
+      "Type": "Fail",
+      "Cause": "Payment Processing Pipeline Failure Condition Reached.",
+      "Error": "PAYMENT_ORCHESTRATION_ERROR"
     }
   }
 }
