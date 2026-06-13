@@ -1,7 +1,7 @@
 import { Handler } from 'aws-lambda';
-import { PaymentRequest } from '../../types/payment';
+import { PaymentRequest, ValidationResponse } from '../../types/payment';
 
-export const handler: Handler<PaymentRequest, { isValid: boolean }> = async (event) => {
+export const handler: Handler<PaymentRequest, ValidationResponse> = async (event) => {
   console.log('Received payment validation request:', JSON.stringify(event, null, 2));
 
   // 1. Destructure fields from our request payload

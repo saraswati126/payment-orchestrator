@@ -1,22 +1,15 @@
 import { Handler } from 'aws-lambda';
-import { PaymentRequest } from '../../types/payment';
+import { AuthorizationRequest, AuthorizationResponse } from '../../types/payment';
 
-interface AuthorizationResponse {
-  statusCode: number;
-  transactionId?: string;
-  status: 'AUTHORIZED' | 'FAILED';
-  errorMessage?: string;
-}
-
-export const handler: Handler<PaymentRequest, AuthorizationResponse> = async (event) => {
+export const handler: Handler<AuthorizationRequest, AuthorizationResponse> = async (event) => {
   console.log('--- AUTHORIZATION STEP STARTED ---');
   console.log('Received Payload:', JSON.stringify(event, null, 2));
 
   try {
-    const { amount, currency, customerId } = event;
+    const { amount, currency, customerId, paymentId } = event;
 
-    // Simulate an external API call to an upstream acquirer bank (e.g., Stripe/Adyen)
-    console.log(`Requesting a credit hold of ${amount} ${currency} for Customer: ${customerId}`);
+    // Simulate an external API call to an upstream acquirer bank (e.g., Stripe)
+    console.log(`[Payment: ${paymentId}] Requesting a credit hold of ${amount} ${currency} for Customer: ${customerId}`);
     
     // Mocking an external gateway network round-trip delay
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -30,18 +23,19 @@ export const handler: Handler<PaymentRequest, AuthorizationResponse> = async (ev
     const mockTxnId = `auth_txn_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`Authorization successful. Transaction reference ID: ${mockTxnId}`);
 
+    // Matches the central AuthorizationResponse interface perfectly
     return {
-      statusCode: 200,
-      transactionId: mockTxnId,
-      status: 'AUTHORIZED'
+      status: 'AUTHORIZED',
+      transactionId: mockTxnId
     };
 
   } catch (error: any) {
     console.error('Authorization processing failure:', error.message);
+    
+    // Matches the central AuthorizationResponse interface perfectly
     return {
-      statusCode: 400,
-      status: 'FAILED',
-      errorMessage: error.message
+      status: 'DECLINED',
+      error: error.message
     };
   }
 };

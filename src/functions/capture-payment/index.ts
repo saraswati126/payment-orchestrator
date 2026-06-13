@@ -1,17 +1,5 @@
 import { Handler } from 'aws-lambda';
-
-interface CaptureRequest {
-  transactionId: string;
-  amount: number;
-  currency: string;
-}
-
-interface CaptureResponse {
-  statusCode: number;
-  captureId?: string;
-  status: 'CAPTURED' | 'RECONCILIATION_REQUIRED';
-  errorMessage?: string;
-}
+import { CaptureRequest, CaptureResponse } from '../../types/payment';
 
 export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) => {
   console.log('--- CAPTURE STEP STARTED ---');
@@ -32,18 +20,19 @@ export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) =
     const mockCaptureId = `cap_settle_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`Settlement finalized successfully. Capture ID: ${mockCaptureId}`);
 
+    // Clean, structured return statement matching CaptureResponse interface
     return {
-      statusCode: 200,
-      captureId: mockCaptureId,
-      status: 'CAPTURED'
+      settlementStatus: 'SUCCEEDED',
+      capturedAt: new Date().toISOString()
     };
 
   } catch (error: any) {
     console.error('Settlement capture failure event logged:', error.message);
+    
+    // Fallback response matching CaptureResponse interface
     return {
-      statusCode: 500,
-      status: 'RECONCILIATION_REQUIRED',
-      errorMessage: error.message
+      settlementStatus: 'FAILED',
+      error: error.message
     };
   }
 };
