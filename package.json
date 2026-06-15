@@ -4,8 +4,8 @@
   "description": "Enterprise Serverless Payment Orchestrator Engine",
   "main": "dist/lambdas/validate-account/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "test:local": "npx ts-node local-test-harness.ts"
+},
   "keywords": [
     "serverless",
     "aws",
