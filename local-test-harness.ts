@@ -16,7 +16,7 @@ async function runSimulationPipeline() {
   const incomingPayload: PaymentRequest = {
     paymentId: `pay_order_${Math.random().toString(36).substr(2, 5)}`,
     customerId: "cust_enterprise_8892",
-    amount: -3000, 
+    amount: 15000, 
     currency: "USD"
   };
 
@@ -51,6 +51,7 @@ async function runSimulationPipeline() {
   // --- STEP 3: Prepare Capture Payload State (Pass State Context Transformer) ---
   console.log("Executing State: PrepareCapturePayloadState (Transforming Context)...");
   const captureLambdaInput = {
+    paymentId: incomingPayload.paymentId,
     transactionId: stepFunctionStateMemory.authResult.transactionId!,
     amount: stepFunctionStateMemory.amount,
     currency: stepFunctionStateMemory.currency

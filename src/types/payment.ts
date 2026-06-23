@@ -49,6 +49,7 @@ export interface AuthorizationResponse {
  * Input schema required to finalize the transaction.
  */
 export interface CaptureRequest {
+  paymentId: string;
   transactionId: string;
   amount: number;
   currency: string;

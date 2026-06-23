@@ -1,13 +1,15 @@
 import { Handler } from 'aws-lambda';
 import { CaptureRequest, CaptureResponse } from '../../types/payment';
+import { DB } from '../../shared/database';
 
 export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) => {
   console.log('--- CAPTURE STEP STARTED ---');
   console.log('Received Authorization Context:', JSON.stringify(event, null, 2));
 
-  try {
-    const { transactionId, amount, currency } = event;
+  // Destructure paymentId along with the other fields so we know which record to update
+  const { paymentId, transactionId, amount, currency } = event;
 
+  try {
     if (!transactionId) {
       throw new Error('Missing transactionId. Cannot settle payment without an authorization hold.');
     }
@@ -20,7 +22,12 @@ export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) =
     const mockCaptureId = `cap_settle_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`Settlement finalized successfully. Capture ID: ${mockCaptureId}`);
 
-    // Clean, structured return statement matching CaptureResponse interface
+    // Persist finalized success state to Mock DynamoDB
+    await DB.savePayment({
+      paymentId,
+      status: 'CAPTURED'
+    });
+
     return {
       settlementStatus: 'SUCCEEDED',
       capturedAt: new Date().toISOString()
@@ -29,7 +36,12 @@ export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) =
   } catch (error: any) {
     console.error('Settlement capture failure event logged:', error.message);
     
-    // Fallback response matching CaptureResponse interface
+    // Persist failed state to Mock DynamoDB
+    await DB.savePayment({
+      paymentId,
+      status: 'FAILED'
+    });
+
     return {
       settlementStatus: 'FAILED',
       error: error.message

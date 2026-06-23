@@ -4,8 +4,8 @@
   "description": "Enterprise Serverless Payment Orchestrator Engine",
   "main": "dist/lambdas/validate-account/index.js",
   "scripts": {
-  "test:local": "npx ts-node local-test-harness.ts"
-},
+    "test:local": "npx ts-node local-test-harness.ts"
+  },
   "keywords": [
     "serverless",
     "aws",
@@ -23,7 +23,7 @@
   "homepage": "https://github.com/saraswati126/payment-orchestrator#readme",
   "devDependencies": {
     "@types/aws-lambda": "^8.10.162",
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.4",
     "typescript": "^6.0.3"
   }
 }

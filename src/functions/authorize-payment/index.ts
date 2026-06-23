@@ -1,13 +1,14 @@
 import { Handler } from 'aws-lambda';
 import { AuthorizationRequest, AuthorizationResponse } from '../../types/payment';
+import { DB } from '../../shared/database';
 
 export const handler: Handler<AuthorizationRequest, AuthorizationResponse> = async (event) => {
   console.log('--- AUTHORIZATION STEP STARTED ---');
   console.log('Received Payload:', JSON.stringify(event, null, 2));
 
-  try {
-    const { amount, currency, customerId, paymentId } = event;
+  const { amount, currency, customerId, paymentId } = event;
 
+  try {
     // Simulate an external API call to an upstream acquirer bank (e.g., Stripe)
     console.log(`[Payment: ${paymentId}] Requesting a credit hold of ${amount} ${currency} for Customer: ${customerId}`);
     
@@ -23,6 +24,13 @@ export const handler: Handler<AuthorizationRequest, AuthorizationResponse> = asy
     const mockTxnId = `auth_txn_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`Authorization successful. Transaction reference ID: ${mockTxnId}`);
 
+    // Update Mock DynamoDB with the transaction reference and state
+    await DB.savePayment({
+      paymentId,
+      transactionId: mockTxnId,
+      status: 'AUTHORIZED'
+    });
+
     // Matches the central AuthorizationResponse interface perfectly
     return {
       status: 'AUTHORIZED',
@@ -32,6 +40,12 @@ export const handler: Handler<AuthorizationRequest, AuthorizationResponse> = asy
   } catch (error: any) {
     console.error('Authorization processing failure:', error.message);
     
+    // Update Mock DynamoDB with the failure status
+    await DB.savePayment({
+      paymentId,
+      status: 'FAILED'
+    });
+
     // Matches the central AuthorizationResponse interface perfectly
     return {
       status: 'DECLINED',

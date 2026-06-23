@@ -10,7 +10,8 @@
     "strictNullChecks": true,                    /* Prevents crashing on missing data */
     "esModuleInterop": true,                     /* Smooth compatibility layers */
     "skipLibCheck": true,                        /* Makes compilation lightning fast */
-    "forceConsistentCasingInFileNames": true     /* Prevents errors across Windows/Mac */
+    "forceConsistentCasingInFileNames": true,     /* Prevents errors across Windows/Mac */
+    "types": ["node"]
   },
   "include": ["src/**/*"]                        /* Check everything inside the src folder */
 }
