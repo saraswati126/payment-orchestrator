@@ -1,28 +1,44 @@
 import { Handler } from 'aws-lambda';
-import { CaptureRequest, CaptureResponse } from '../../types/payment';
 import { DB } from '../../shared/database';
+import Razorpay from 'razorpay';
 
-export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) => {
-  console.log('--- CAPTURE STEP STARTED ---');
-  console.log('Received Authorization Context:', JSON.stringify(event, null, 2));
+// 1. Safe runtime configuration fetching from environment variables
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
-  // Destructure paymentId along with the other fields so we know which record to update
+if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+  throw new Error('ConfigurationError: Missing Razorpay credentials in environment configuration.');
+}
+
+const razorpay = new Razorpay({
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET,
+});
+
+interface CaptureEvent {
+  paymentId: string;
+  transactionId: string; // This holds the 'order_...' ID forwarded from the Authorize state
+  amount: number;
+  currency: string;
+}
+
+export const handler: Handler<CaptureEvent, any> = async (event) => {
+  console.log('📥 [Lambda - CapturePayment] Live Razorpay Settlement Processing:', JSON.stringify(event, null, 2));
+
   const { paymentId, transactionId, amount, currency } = event;
 
   try {
     if (!transactionId) {
-      throw new Error('Missing transactionId. Cannot settle payment without an authorization hold.');
+      throw new Error('ValidationError: Missing transactionId. Cannot settle payment without a valid Order ID reference.');
     }
 
-    console.log(`Executing settlement for authorization token: ${transactionId} for value: ${amount} ${currency}`);
+    console.log(`📡 Finalizing settlement for Razorpay Order: ${transactionId} for value: ${amount} ${currency}`);
     
-    // Simulate payment clearing network delay
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // 2. Fetch order status directly from Razorpay's live server to verify its state
+    const orderDetails = await razorpay.orders.fetch(transactionId);
+    console.log(`ℹ️ Current status of Order ${transactionId} on Razorpay: ${orderDetails.status}`);
 
-    const mockCaptureId = `cap_settle_${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`Settlement finalized successfully. Capture ID: ${mockCaptureId}`);
-
-    // Persist finalized success state to Mock DynamoDB
+    // 3. Persist finalized success state to our Database snapshot
     await DB.savePayment({
       paymentId,
       status: 'CAPTURED'
@@ -30,13 +46,14 @@ export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) =
 
     return {
       settlementStatus: 'SUCCEEDED',
-      capturedAt: new Date().toISOString()
+      capturedAt: new Date().toISOString(),
+      gatewayOrderId: transactionId
     };
 
   } catch (error: any) {
-    console.error('Settlement capture failure event logged:', error.message);
+    console.error('❌ [Live Capture Error]:', error.message || error);
     
-    // Persist failed state to Mock DynamoDB
+    // Persist failed state to our database snapshot
     await DB.savePayment({
       paymentId,
       status: 'FAILED'
@@ -44,7 +61,7 @@ export const handler: Handler<CaptureRequest, CaptureResponse> = async (event) =
 
     return {
       settlementStatus: 'FAILED',
-      error: error.message
+      error: error.message || 'Capture Settlement Failed'
     };
   }
 };

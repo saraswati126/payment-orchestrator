@@ -5,7 +5,11 @@ dist/
 
 # Development local secrets
 .env
+.env.dev
 .env.local
+
+# Local Testing Database Snapshots
+local-db-snapshot.json
 
 # Terraform configuration files (temporary background files)
 .terraform/

@@ -1,55 +1,79 @@
 import { Handler } from 'aws-lambda';
-import { AuthorizationRequest, AuthorizationResponse } from '../../types/payment';
 import { DB } from '../../shared/database';
+import Razorpay from 'razorpay';
 
-export const handler: Handler<AuthorizationRequest, AuthorizationResponse> = async (event) => {
-  console.log('--- AUTHORIZATION STEP STARTED ---');
-  console.log('Received Payload:', JSON.stringify(event, null, 2));
+// 1. Safe runtime configuration fetching from environment variables
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
-  const { amount, currency, customerId, paymentId } = event;
+// Fail-fast guard clause to ensure secrets are injected properly
+if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+  throw new Error('ConfigurationError: Missing Razorpay credentials in environment configuration.');
+}
+
+const razorpay = new Razorpay({
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET,
+});
+
+interface AuthorizeEvent {
+  paymentId: string;
+  customerId: string;
+  amount: number;
+  currency: string;
+  status: string;
+}
+
+export const handler: Handler<AuthorizeEvent, any> = async (event) => {
+  console.log('📥 [Lambda - AuthorizePayment] Live Razorpay Processing:', JSON.stringify(event, null, 2));
+
+  const { paymentId, customerId, amount, currency } = event;
 
   try {
-    // Simulate an external API call to an upstream acquirer bank (e.g., Stripe)
-    console.log(`[Payment: ${paymentId}] Requesting a credit hold of ${amount} ${currency} for Customer: ${customerId}`);
-    
-    // Mocking an external gateway network round-trip delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log(`📡 Communication initiated with Razorpay API for ${amount} ${currency}...`);
 
-    // Simple risk evaluation simulation rule
-    if (amount > 10000) {
-      throw new Error('Transaction limit exceeded. Potential fraud flag triggered.');
-    }
-
-    // Generate a simulated mock financial transaction track token
-    const mockTxnId = `auth_txn_${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`Authorization successful. Transaction reference ID: ${mockTxnId}`);
-
-    // Update Mock DynamoDB with the transaction reference and state
-    await DB.savePayment({
-      paymentId,
-      transactionId: mockTxnId,
-      status: 'AUTHORIZED'
+    // 2. Instantiate a verified Order entity inside Razorpay's staging servers
+    // (Amounts are processed as the base fractional integer: e.g. Paise for INR)
+    const order = await razorpay.orders.create({
+      amount: amount, 
+      currency: currency.toUpperCase(),
+      receipt: paymentId, 
+      notes: {
+        internalCustomerId: customerId,
+        environment: 'Serverless-Payment-Orchestrator'
+      }
     });
 
-    // Matches the central AuthorizationResponse interface perfectly
-    return {
+    console.log(`✅ Live Razorpay Authorization Success! Order ID: ${order.id}`);
+
+    // 3. Persist the generated Order entity ID reference directly into the database snapshot
+    await DB.savePayment({
+      paymentId,
       status: 'AUTHORIZED',
-      transactionId: mockTxnId
+      transactionId: order.id 
+    });
+
+    // 4. Bubble tracking metadata up to forward it to the Capture phase 
+    return {
+      paymentId,
+      customerId,
+      amount,
+      currency,
+      transactionId: order.id,
+      status: 'AUTHORIZED'
     };
 
   } catch (error: any) {
-    console.error('Authorization processing failure:', error.message);
+    // CRITICAL DEBUG: Stringify the entire object to read what Razorpay rejected
+    console.error(`❌ [Live Razorpay Error Deep Log]:`, JSON.stringify(error, null, 2));
     
-    // Update Mock DynamoDB with the failure status
     await DB.savePayment({
       paymentId,
       status: 'FAILED'
     });
 
-    // Matches the central AuthorizationResponse interface perfectly
-    return {
-      status: 'DECLINED',
-      error: error.message
-    };
+    // Bubble up a clear message string
+    const description = error.error?.description || error.message || 'Failed to authorize payment';
+    throw new Error(`RazorpayGatewayException: ${description}`);
   }
 };
